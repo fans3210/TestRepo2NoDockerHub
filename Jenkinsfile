@@ -1,7 +1,8 @@
-def repoName = scm.getUserRemoteConfigs()[0].getUrl().tokenize('/')[3].split("\\.")[0]
+def repoNameLower = (scm.getUserRemoteConfigs()[0].getUrl().tokenize('/')[3].split("\\.")[0]).toLowerCase()
 
 pipeline {
     environment {
+        dhUser = 'dspalgo'
         registryCredential = 'algodockerhub'
         dockerImage = ''
     }
@@ -18,8 +19,9 @@ pipeline {
         stage('build docker image') {
             steps {
                 // sh 'docker build -t algoimg/testrepo .'
+                echo 'github repoNameLower = ' + repoNameLower
                 script {
-                    dockerImage = docker.build 'algoimg/testrepo' + ":$BUILD_NUMBER"
+                    dockerImage = docker.build "$repoNameLower/testrepo" + ":$GIT_COMMIT"
                 }
             }
         }
@@ -27,7 +29,6 @@ pipeline {
             steps {
                 echo 'githubconfig = ' + scm.getUserRemoteConfigs()
                 echo 'githubconfig geturl tokenize = ' + scm.getUserRemoteConfigs()[0].getUrl().tokenize('/')
-                echo 'github repo name = ' + repoName
                 echo 'git hash = ' + "$GIT_COMMIT"
             }
         }

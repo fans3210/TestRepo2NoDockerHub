@@ -1,7 +1,12 @@
 def repoName = scm.getUserRemoteConfigs()[0].getUrl().tokenize('/')[3].split("\\.")[0]
 
 pipeline {
+    environment {
+        registryCredential = 'dockerhub'
+        dockerImage = ''
+    }
     agent any
+    
     stages {
         stage('clone') {
             steps {

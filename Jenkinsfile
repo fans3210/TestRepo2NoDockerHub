@@ -2,7 +2,7 @@ def repoName = scm.getUserRemoteConfigs()[0].getUrl().tokenize('/')[3].split("\\
 
 pipeline {
     environment {
-        registryCredential = 'dockerhub'
+        registryCredential = 'algodockerhub'
         dockerImage = ''
     }
     agent any
@@ -27,7 +27,7 @@ pipeline {
             steps {
                 echo 'githubconfig = ' + scm.getUserRemoteConfigs()
                 echo 'githubconfig geturl tokenize = ' + scm.getUserRemoteConfigs()[0].getUrl().tokenize('/')
-                // echo 'github repo name = ' + repoName
+                echo 'github repo name = ' + repoName
                 echo 'git hash = ' + "$GIT_COMMIT"
             }
         }

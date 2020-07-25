@@ -21,15 +21,17 @@ pipeline {
                 // sh 'docker build -t algoimg/testrepo .'
                 echo 'github repoNameLower = ' + repoNameLower
                 script {
-                    dockerImage = docker.build "$repoNameLower/testrepo" + ":$GIT_COMMIT"
+                    dockerImage = docker.build "$dhUser/$repoNameLower" + ":$GIT_COMMIT"
                 }
             }
         }
         stage('upload to dh') {
             steps {
-                echo 'githubconfig = ' + scm.getUserRemoteConfigs()
-                echo 'githubconfig geturl tokenize = ' + scm.getUserRemoteConfigs()[0].getUrl().tokenize('/')
-                echo 'git hash = ' + "$GIT_COMMIT"
+                script {
+                    docker.withRegistry('', registryCredential) {
+                        dockerImage.push()
+                    }
+                }
             }
         }
     }

@@ -22,7 +22,6 @@ pipeline {
                 echo 'githubconfig geturl tokenize = ' + scm.getUserRemoteConfigs()[0].getUrl().tokenize('/')
                 echo 'github repo name = ' + scm.getUserRemoteConfigs()[0].getUrl().tokenize('/')[3].split("\\.")[0]
                 echo 'git hash = ' + "$GIT_COMMIT"
-                echo 'hash = ' + "$"
             }
         }
     }

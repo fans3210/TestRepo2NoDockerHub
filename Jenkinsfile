@@ -1,3 +1,5 @@
+def repoName = scm.getUserRemoteConfigs()[0].getUrl().tokenize('/')[3].split("\\.")[0]
+
 pipeline {
     agent any
     stages {
@@ -17,7 +19,6 @@ pipeline {
             }
         }
         stage('upload to dh') {
-            def repoName = scm.getUserRemoteConfigs()[0].getUrl().tokenize('/')[3].split("\\.")[0]
             steps {
                 echo 'githubconfig = ' + scm.getUserRemoteConfigs()
                 echo 'githubconfig geturl tokenize = ' + scm.getUserRemoteConfigs()[0].getUrl().tokenize('/')

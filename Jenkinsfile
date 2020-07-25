@@ -12,7 +12,7 @@ pipeline {
             steps {
                 // sh 'docker build -t algoimg/testrepo .'
                 echo 'githubconfig = ' + scm.getUserRemoteConfigs()
-                echo 'githubconfig geturl = ' + scm.getUserRemoteConfigs()[0].getUrl()
+                echo 'githubconfig geturl tokenize = ' + scm.getUserRemoteConfigs()[0].getUrl().tokenize('/')
                 echo 'github repo name = ' + scm.getUserRemoteConfigs()[0].getUrl().tokenize('/')[3].split("\\.")[0]
                 echo 'build number = ' + "$BUILD_NUMBER"
                 script {

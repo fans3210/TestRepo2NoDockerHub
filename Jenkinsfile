@@ -4,7 +4,8 @@ pipeline {
     environment {
         dhUser = 'fans3210'
         registryCredential = 'algodockerhub'
-        dockerImage = ''
+        dockerImageSha = ''
+        dockerImageLatest = ''
     }
     agent any
     
@@ -21,7 +22,8 @@ pipeline {
                 // sh 'docker build -t algoimg/testrepo .'
                 echo 'github repoNameLower = ' + repoNameLower
                 script {
-                    dockerImage = docker.build "$dhUser/$repoNameLower" + ":$GIT_COMMIT"
+                    dockerImageSha = docker.build "$dhUser/$repoNameLower" + ":$GIT_COMMIT"
+                    dockerImageLatest = docker.build "$dhUser/$repoNameLower" + ":latest"
                 }
             }
         }
@@ -29,7 +31,8 @@ pipeline {
             steps {
                 script {
                     docker.withRegistry('', registryCredential) {
-                        dockerImage.push()
+                        dockerImageSha.push()
+                        dockerImageLatest.push()
                     }
                 }
             }

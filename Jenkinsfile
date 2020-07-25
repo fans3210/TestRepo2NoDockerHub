@@ -2,7 +2,7 @@ def repoNameLower = (scm.getUserRemoteConfigs()[0].getUrl().tokenize('/')[3].spl
 
 pipeline {
     environment {
-        dhUser = 'dspalgo'
+        dhUser = 'fans3210'
         registryCredential = 'algodockerhub'
         dockerImage = ''
     }

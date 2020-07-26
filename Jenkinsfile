@@ -12,7 +12,6 @@ pipeline {
     stages {
         stage('clone') {
             steps {
-                // git credentialsId: 'gh_fans3210', url: 'https://github.com/fans3210/TestRepo1.git'
                 checkout scm
             }
         }

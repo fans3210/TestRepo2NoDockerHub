@@ -2,7 +2,7 @@ def repoNameLower = (scm.getUserRemoteConfigs()[0].getUrl().tokenize('/')[3].spl
 
 pipeline {
     options {
-      timeout(time: 10, unit: 'MINUTES') 
+      timeout(time: 5, unit: 'MINUTES') 
     }
     environment {
         dhUser = 'fans3210'

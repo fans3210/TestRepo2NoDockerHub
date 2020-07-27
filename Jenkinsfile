@@ -1,6 +1,9 @@
 def repoNameLower = (scm.getUserRemoteConfigs()[0].getUrl().tokenize('/')[3].split("\\.")[0]).toLowerCase()
 
 pipeline {
+    options {
+      timeout(time: 10, unit: 'MINUTES') 
+    }
     environment {
         dhUser = 'fans3210'
         registryCredential = 'algodockerhub'

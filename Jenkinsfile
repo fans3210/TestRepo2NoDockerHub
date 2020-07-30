@@ -1,43 +1,51 @@
-def repoNameLower = (scm.getUserRemoteConfigs()[0].getUrl().tokenize('/')[3].split("\\.")[0]).toLowerCase()
+def yamlData = null
+def repoName = null
+def userName = null
+def parsedCmdStr = """["python3","-u","longrun.py"]"""
 
 pipeline {
     options {
-      timeout(time: 10, unit: 'MINUTES') 
+        timeout(time: 10, unit: 'MINUTES') 
     }
-    environment {
-        dhUser = 'fans3210'
-        registryCredential = 'algodockerhub'
-        dockerImageSha = ''
-        dockerImageLatest = ''
-    }
-    agent any
-    
+
+    agent { node { label 'kubepod' } }
+    // agent any
     stages {
-        stage('clone') {
+        stage('test read yaml from str') {
             steps {
-                checkout scm
+                script {
+                    yamlData = readYaml text: """
+                    apiVersion: batch/v1
+                    kind: Job
+                    metadata:
+                        name: ${repoName}-job
+                        namespace: algo
+                    """
+                    assert yamlData.something == 'my datas'
+                    assert yamlData.size == 3
+                    assert yamlData.isEmpty == false
+                }
             }
         }
+        stage('test print the yaml obj') {
+            steps {
+                echo 'yamlData = ' + yamlData
+            }
+        }
+        // stage('prepare') {
+        //     steps {
+        //         echo 'pwd = ' + pwd()
+        //         sh "which curl"
+        //         sh "docker ps"
+        //     }
+        // }
         
-        stage('build docker image') {
-            steps {
-                // sh 'docker build -t algoimg/testrepo .'
-                echo 'github repoNameLower = ' + repoNameLower
-                script {
-                    dockerImageSha = docker.build "$dhUser/$repoNameLower" + ":$GIT_COMMIT"
-                    dockerImageLatest = docker.build "$dhUser/$repoNameLower" + ":latest"
-                }
-            }
-        }
-        stage('upload to dh') {
-            steps {
-                script {
-                    docker.withRegistry('', registryCredential) {
-                        dockerImageSha.push()
-                        dockerImageLatest.push()
-                    }
-                }
-            }
-        }
+        // stage('run kubctl ') {
+        //     steps {
+        //         sh 'kubectl get pods'
+        //     }
+        // }
+        
+
     }
 }

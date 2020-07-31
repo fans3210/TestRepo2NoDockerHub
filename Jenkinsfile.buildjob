@@ -1,0 +1,90 @@
+def repoNameLower = null
+def jobName = null
+pipeline {
+    options {
+        timeout(time: 10, unit: 'MINUTES') 
+    }
+
+    environment {
+        repoName = 'testrepo2nodockerhub'
+        repoCredentialId = 'gh_fans3210'
+        userName = 'fans3210'
+        repoUrl = 'https://github.com/fans3210/TestRepo2NoDockerHub.git'
+        parsedCmdStr = """ ["python3","-u","longrun.py"] """
+    }
+    
+    agent { node { label 'kubepod' } }
+    
+    stages {
+        stage('clone repo') {
+            steps {
+                git changelog: false, credentialsId: "$repoCredentialId", url: "$repoUrl"
+            }
+        }
+        stage('build docker image') {
+            steps {
+                echo 'pwd = ' + pwd()
+                echo 'current workspace = ' + env.WORKSPACE
+                sh 'ls'
+                script {
+                    repoNameLower = repoName.toLowerCase()
+                    dockerImage = docker.build "$userName/$repoNameLower"
+                }
+            }
+        }
+        stage('build template string') {
+            steps {
+                script {
+                    jobName = "${userName}-${repoNameLower}-job"
+                    def yamlStr = """
+                    apiVersion: batch/v1
+                    kind: Job
+                    metadata:
+                        name: ${jobName}
+                        namespace: algo
+                    spec:
+                        backoffLimit: 5
+                        activeDeadlineSeconds: 600
+                        ttlSecondsAfterFinished: 0
+                        template:
+                            spec:
+                                containers:
+                                    - name: ${repoNameLower}
+                                      image: ${userName}/${repoNameLower}
+                                      imagePullPolicy: Never
+                                      command: ${parsedCmdStr}
+                                      env:
+                                        - name: PYTHONUNBUFFERED
+                                          value: "0"
+                                restartPolicy: Never
+                    """
+                    
+                    writeFile file: "${jobName}.yaml", text: yamlStr
+                }
+            }
+        }
+
+        stage('provision pod') {
+            steps {
+                sh 'kubectl version'
+                script {
+                    try {
+                        sh "kubectl delete job ${jobName} -n algo"
+                    } catch (Exception e) {
+                        echo 'delete job got error: ' + e
+                    }
+                }
+                echo 'check whether we have the yaml file'
+                sh "kubectl apply -f ${jobName}.yaml"
+            }
+        }
+        stage('save artifacts') {
+            steps {
+                    sh 'mkdir -p output'
+                    sh 'ls'
+                    sh "cp ./${jobName}.yaml ./output"
+                    archiveArtifacts artifacts: 'output/*.yaml'
+            }
+        }
+    }
+}

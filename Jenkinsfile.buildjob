@@ -1,24 +1,46 @@
+def getLowerRepoNameFromUrl(urlStr) {
+    return (urlStr.tokenize('/')[3].split("\\.")[0]).toLowerCase()
+}
+
+def getLowerUserNameFromUrl(urlStr) {
+    return (urlStr.tokenize('/')[2]).toLowerCase()
+}
+
+def userName = null
 def repoNameLower = null
 def jobName = null
 pipeline {
     options {
         timeout(time: 10, unit: 'MINUTES') 
     }
-
-    environment {
-        repoName = 'testrepo2nodockerhub'
-        repoCredentialId = 'gh_fans3210'
-        userName = 'fans3210'
-        repoUrl = 'https://github.com/fans3210/TestRepo2NoDockerHub.git'
-        parsedCmdStr = """ ["python3","-u","longrun.py"] """
-    }
-    
     agent { node { label 'kubepod' } }
-    
+    environment {
+        CMD = CMD_PLACE_HOLDER
+        REPO_URL = REPO_URL_PLACE_HOLDER
+        REPO_CREDENTIAL_ID = REPO_CREDENTIAL_ID_PLACE_HOLDER
+    }
     stages {
+        stage('params validation') {
+            steps {
+                script {
+                    if (env.REPO_URL == '' || env.REPO_URL == 'REPO_URL_PLACE_HOLDER') { // and/or whatever condition you want
+                        currentBuild.result = 'ABORTED'
+                        error('repo_url not set or invalid')
+                    }
+                    if (env.REPO_CREDENTIAL_ID == '' || env.REPO_CREDENTIAL_ID == 'REPO_CREDENTIAL_ID_PLACE_HOLDER') { // and/or whatever condition you want
+                        currentBuild.result = 'ABORTED'
+                        error('repo_credential_id not set or invalid')
+                    }
+                    if (env.CMD == '' || env.CMD == 'CMD_PLACE_HOLDER') {
+                        currentBuild.result = 'ABORTED'
+                        error('cmd not set or invalid')
+                    }
+                }
+            }
+        }
         stage('clone repo') {
             steps {
-                git changelog: false, credentialsId: "$repoCredentialId", url: "$repoUrl"
+                git changelog: false, credentialsId: "$env.REPO_CREDENTIAL_ID", url: "$env.REPO_URL"
             }
         }
         stage('build docker image') {
@@ -27,7 +49,8 @@ pipeline {
                 echo 'current workspace = ' + env.WORKSPACE
                 sh 'ls'
                 script {
-                    repoNameLower = repoName.toLowerCase()
+                    userName = getLowerUserNameFromUrl(env.REPO_URL)
+                    repoNameLower = getLowerRepoNameFromUrl(env.REPO_URL)
                     dockerImage = docker.build "$userName/$repoNameLower"
                 }
             }
@@ -52,7 +75,7 @@ pipeline {
                                     - name: ${repoNameLower}
                                       image: ${userName}/${repoNameLower}
                                       imagePullPolicy: Never
-                                      command: ${parsedCmdStr}
+                                      command: ${env.CMD}
                                       env:
                                         - name: PYTHONUNBUFFERED
                                           value: "0"

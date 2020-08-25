@@ -8,7 +8,7 @@ if __name__ == "__main__":
     print(files)
 
     print('test env datasetinput = ')
-    print(os.environ('DATASET_INPUT'))
+    print(os.getenv('DATASET_INPUT'))
 
     cnt = 0
     total = 200

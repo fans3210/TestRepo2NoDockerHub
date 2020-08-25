@@ -6,8 +6,12 @@ if __name__ == "__main__":
     print('test list file')
     files = os.listdir('/dataset')
     print(files)
+
+    print('test env datasetinput = ')
+    print(os.environ('DATASET_INPUT'))
+
     cnt = 0
-    total = 1000
+    total = 200
     while cnt <= total:
         time.sleep(0.25)
 

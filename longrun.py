@@ -11,7 +11,7 @@ if __name__ == "__main__":
     print(os.getenv('DATASET_INPUT'))
 
     cnt = 0
-    total = 200
+    total = 1000
     while cnt <= total:
         time.sleep(0.25)
 

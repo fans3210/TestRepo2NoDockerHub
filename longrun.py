@@ -1,8 +1,13 @@
 import time
+import os
 
 if __name__ == "__main__":
+
+    print('test list file')
+    files = os.listdir('/dataset')
+    print(files)
     cnt = 0
-    total = 100
+    total = 1000
     while cnt <= total:
         time.sleep(0.25)
 

@@ -3,12 +3,12 @@ import os
 
 if __name__ == "__main__":
 
-    print('test list file')
-    files = os.listdir('/dataset')
-    print(files)
-
     print('test env datasetinput = ')
     print(os.getenv('DATASET_INPUT'))
+
+    print('test list file')
+    files = os.listdir(os.getenv('DATASET_INPUT'))
+    print(files)
 
     cnt = 0
     total = 1000

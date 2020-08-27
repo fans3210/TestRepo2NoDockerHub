@@ -15,29 +15,34 @@ pipeline {
     }
     agent { node { label 'kubepod' } }
     environment {
+        CALLER_USERID = "5f473786c6218e0028de94bb"
         CMD = '["python3","-u","longrun.py"]'
         REPO_URL = "https://github.com/fans3210/TestRepo2NoDockerHub.git"
         REPO_CREDENTIAL_ID = "gh_fans3210"
     }
     stages {
-        stage('params validation') {
-            steps {
-                script {
-                    if (env.REPO_URL == '' || env.REPO_URL == 'REPO_URL_PLACE_HOLDER') { // and/or whatever condition you want
-                        currentBuild.result = 'ABORTED'
-                        error('repo_url not set or invalid')
-                    }
-                    if (env.REPO_CREDENTIAL_ID == '' || env.REPO_CREDENTIAL_ID == 'REPO_CREDENTIAL_ID_PLACE_HOLDER') { // and/or whatever condition you want
-                        currentBuild.result = 'ABORTED'
-                        error('repo_credential_id not set or invalid')
-                    }
-                    if (env.CMD == '' || env.CMD == 'CMD_PLACE_HOLDER') {
-                        currentBuild.result = 'ABORTED'
-                        error('cmd not set or invalid')
-                    }
-                }
-            }
-        }
+        // stage('params validation') {
+        //     steps {
+        //         script {
+        //             if (env.CALLER_USERID == '' || env.CALLER_USERID == 'CALLER_USERID_PLACE_HOLDER') { // and/or whatever condition you want
+        //                 currentBuild.result = 'ABORTED'
+        //                 error('caller_userid not set or invalid')
+        //             }
+        //             if (env.REPO_URL == '' || env.REPO_URL == 'REPO_URL_PLACE_HOLDER') { // and/or whatever condition you want
+        //                 currentBuild.result = 'ABORTED'
+        //                 error('repo_url not set or invalid')
+        //             }
+        //             if (env.REPO_CREDENTIAL_ID == '' || env.REPO_CREDENTIAL_ID == 'REPO_CREDENTIAL_ID_PLACE_HOLDER') { // and/or whatever condition you want
+        //                 currentBuild.result = 'ABORTED'
+        //                 error('repo_credential_id not set or invalid')
+        //             }
+        //             if (env.CMD == '' || env.CMD == 'CMD_PLACE_HOLDER') {
+        //                 currentBuild.result = 'ABORTED'
+        //                 error('cmd not set or invalid')
+        //             }
+        //         }
+        //     }
+        // }
         // stage('clone repo') {
         //     steps {
         //         git changelog: false, credentialsId: "$env.REPO_CREDENTIAL_ID", url: "$env.REPO_URL"
@@ -55,6 +60,7 @@ pipeline {
         //         }
         //     }
         // }
+
         stage('build template string') {
             steps {
                 script {
@@ -75,7 +81,7 @@ pipeline {
                                     - name: shared-volume
                                       emptyDir: {}
                                 initContainers:
-                                    - name: prepare-data
+                                    - name: pd
                                       image: mintel/docker-alpine-bash-curl-jq
                                       volumeMounts:
                                         - name: shared-volume
@@ -90,65 +96,99 @@ pipeline {
                                       args:
                                         - -c
                                         - |
-                                          apk add --update coreutils
                                           echo 'hello world' > /dataset/hello.txt
                                           echo 'hello' > /dataset/hello2.txt
                                           
-                                          secret_key=\$JWT_SECRET
-                                          
-                                          echo secret = \$secret_key
+                                          cat - <<REALEND > /dataset/genToken.sh
+                                          #!/bin/bash 
+                                          apk add --update coreutils
+                                          secret_key=\\\$JWT_SECRET
+
+                                          echo secret = \\\$secret_key
                                           
                                           base64url() {
                                             base64 -w 0 | tr '+/' '-_' | tr -d '='
                                           }
                                           
-                                          jwt_header=\$(echo -n '{"alg":"HS256","typ":"JWT"}' | base64url)
-                                          
+                                          jwt_header=\\\$(echo -n '{"alg":"HS256","typ":"JWT"}' | base64url)
                                           echo 'jwt header = '
-                                          echo \$jwt_header
+                                          echo \\\$jwt_header
                                           
-                                          time_str() {
+                                           time_str() {
                                             date +"%s"
                                           }
                                           
-                                          now=\$(time_str)
-                                          echo 'now = '
-                                          echo \$now
+                                          now=\\\$(time_str)
+                                          echo 'now and expire = '
+                                          echo \\\$now
                                           
-                                          time_100=\$((\$now + 100))
+                                          expire=\\\$((\\\$now + 100))
+
+                                          echo \\\$expire
                                           
-                                          echo \$time_100
-                                          
-                                          jwt_claims=\$(cat <<EOF |
+                                          echo calleruserid = ${env.CALLER_USERID}
+                                           jwt_claims=\\\$(cat <<EOF |
                                           {
-                                            "id": "1234567890",
-                                            "sub": "1234567890",
-                                            "iat": \$now
+                                            "id": "${env.CALLER_USERID}",
+                                            "sub": "${env.CALLER_USERID}",
+                                            "iat": \\\$now,
+                                            "exp": \\\$expire
                                           }
                                           EOF
                                           jq -Mcj '.' | base64url)
-                                          
                                           echo 'jwt_claims = '
-                                          echo \$jwt_claims
-                                        
-                                          jwt_signature=\$(echo -n "\${jwt_header}.\${jwt_claims}" | \
-                                            openssl dgst -sha256 -hmac "\$secret_key" -binary | base64url)
+                                          echo \\\$jwt_claims
                                           
-                                          jwt="\${jwt_header}.\${jwt_claims}.\${jwt_signature}"
+                                          jwt_signature=\\\$(echo -n "\\\${jwt_header}.\\\${jwt_claims}" | \
+                                            openssl dgst -sha256 -hmac "\\\$secret_key" -binary | base64url)
                                           
+                                          echo 'jwt signature = '
+                                          echo \\\$jwt_signature
+                                          
+                                          jwt="\\\${jwt_header}.\\\${jwt_claims}.\\\${jwt_signature}"
+
                                           echo 'final jwt = '
+                                          echo \\\$jwt
+                                          
+                                          export jwt
+                                          
+                                          REALEND
+                                          
+                                          
+                                          cat /dataset/genToken.sh
+                                          echo now run
+                                          chmod 777 /dataset/genToken.sh
+                                          source /dataset/genToken.sh
+                                          
+                                          echo 'check jwt retrieved from bash'
                                           echo \$jwt
                                           
-                                          sleep 20
+
+                                          sleep 30
                                           
+                                    - name: core
+                                      image: ${userName}/${repoNameLower}
+                                      imagePullPolicy: Never
+                                      volumeMounts:
+                                        - name: shared-volume
+                                          mountPath: /dataset
+                                      command: ${env.CMD}
+                                      env:
+                                        - name: PYTHONUNBUFFERED
+                                          value: "0"
+                                        - name: DATASET_INPUT
+                                          valueFrom:
+                                            configMapKeyRef:
+                                                name: provisioned-container-config
+                                                key: DATASET_INPUT
                                 containers:
-                                    - name: upload-data
+                                    - name: ud
                                       image: busybox
                                       volumeMounts:
                                         - name: shared-volume
                                           mountPath: /dataset
                                       command: ["sh"]
-                                      args: ["-c", 
+                                      args: ["-c",
                                       "echo 'finished'
                                       "
                                       ]

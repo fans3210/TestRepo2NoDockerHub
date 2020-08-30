@@ -7,8 +7,7 @@ if __name__ == "__main__":
     print(os.getenv('DATASET_INPUT'))
 
     print('test list file')
-    # files = os.listdir(os.getenv('DATASET_INPUT'))
-    files = os.listdir('/shared/dataset/dataset')
+    files = os.listdir('/shared/dataset/')
     print(files)
 
     cnt = 0

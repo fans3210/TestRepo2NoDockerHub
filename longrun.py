@@ -1,5 +1,6 @@
 import time
 import os
+import pandas as pd
 
 if __name__ == "__main__":
 
@@ -9,6 +10,9 @@ if __name__ == "__main__":
     print('test list file')
     files = os.listdir('/shared/dataset/')
     print(files)
+
+    df = pd.read_json(os.getenv('DATASET_INPUT'))
+    print(df)
 
     cnt = 0
     total = 100

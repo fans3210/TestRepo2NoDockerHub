@@ -81,11 +81,11 @@ pipeline {
                                     - name: shared-volume
                                       emptyDir: {}
                                 initContainers:
-                                    - name: pd
+                                    - name: pre
                                       image: mintel/docker-alpine-bash-curl-jq
                                       volumeMounts:
                                         - name: shared-volume
-                                          mountPath: /dataset
+                                          mountPath: /shared
                                       env:
                                         - name: JWT_SECRET
                                           valueFrom:
@@ -96,10 +96,12 @@ pipeline {
                                       args:
                                         - -c
                                         - |
-                                          echo 'hello world' > /dataset/hello.txt
-                                          echo 'hello' > /dataset/hello2.txt
+                                          mkdir /shared/dataset
+                                          mkdir /shared/scripts
+                                          echo 'hello world' > /shared/dataset/hello.txt
+                                          echo 'hello' > /shared/dataset/hello2.txt
                                           
-                                          cat - <<REALEND > /dataset/genToken.sh
+                                          cat - <<REALEND > shared/scripts/genToken.sh
                                           #!/bin/bash 
                                           apk add --update coreutils
                                           secret_key=\\\$JWT_SECRET
@@ -154,14 +156,24 @@ pipeline {
                                           
                                           REALEND
                                           
-                                          
-                                          cat /dataset/genToken.sh
+                                          echo gen script is
+                                          cat /shared/scripts/genToken.sh
                                           echo now run
-                                          chmod 777 /dataset/genToken.sh
-                                          source /dataset/genToken.sh
+                                          chmod 777 /shared/scripts/genToken.sh
+                                          source /shared/scripts/genToken.sh
                                           
                                           echo 'check jwt retrieved from bash'
                                           echo \$jwt
+                                          
+                                          curl --location --request GET 'http://ingress-nginx-controller.kube-system.svc.cluster.local/api/postgresdataservices/getMock' \
+                                          --header 'header1: 111' \
+                                          --header 'Host: caps4.com' \
+                                          --header "Authorization: Bearer \${jwt}" |
+                                          jq -r '(map(keys) | add | unique) as \$cols | map(. as \$row | \$cols | map(\$row[.])) as \$rows | \$cols, \$rows[] | @csv' \
+                                          >/shared/dataset/input.csv
+                                          
+                                          cat /shared/dataset/input.csv
+                                          
                                           
 
                                           sleep 30
@@ -171,7 +183,7 @@ pipeline {
                                       imagePullPolicy: Never
                                       volumeMounts:
                                         - name: shared-volume
-                                          mountPath: /dataset
+                                          mountPath: /shared/dataset
                                       command: ${env.CMD}
                                       env:
                                         - name: PYTHONUNBUFFERED
@@ -182,11 +194,11 @@ pipeline {
                                                 name: provisioned-container-config
                                                 key: DATASET_INPUT
                                 containers:
-                                    - name: ud
+                                    - name: post
                                       image: busybox
                                       volumeMounts:
                                         - name: shared-volume
-                                          mountPath: /dataset
+                                          mountPath: /shared/dataset
                                       command: ["sh"]
                                       args: ["-c",
                                       "echo 'finished'

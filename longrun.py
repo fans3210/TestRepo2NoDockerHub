@@ -12,7 +12,7 @@ if __name__ == "__main__":
     print(files)
 
     cnt = 0
-    total = 1000
+    total = 100
     while cnt <= total:
         time.sleep(0.25)
 

@@ -11,18 +11,24 @@ def repoNameLower = null
 def jobName = null
 pipeline {
     options {
-        timeout(time: 10, unit: 'MINUTES') 
+        timeout(time: 10, unit: 'MINUTES')
     }
     agent { node { label 'kubepod' } }
     environment {
-        CMD = CMD_PLACE_HOLDER
-        REPO_URL = REPO_URL_PLACE_HOLDER
-        REPO_CREDENTIAL_ID = REPO_CREDENTIAL_ID_PLACE_HOLDER
+        JOB_NAME = "test"
+        CMD = '["python3","-u","longrun.py"]'
+        REPO_URL = "https://github.com/fans3210/TestRepo2NoDockerHub.git"
+        REPO_CREDENTIAL_ID = "gh_fans3210"
+        CALLER_USERID = "5f4b2838bd0475002923e228"
     }
     stages {
         stage('params validation') {
             steps {
                 script {
+                    if (env.CALLER_USERID == '' || env.CALLER_USERID == 'CALLER_USERID_PLACE_HOLDER') { // and/or whatever condition you want
+                        currentBuild.result = 'ABORTED'
+                        error('caller_userid not set or invalid')
+                    }
                     if (env.REPO_URL == '' || env.REPO_URL == 'REPO_URL_PLACE_HOLDER') { // and/or whatever condition you want
                         currentBuild.result = 'ABORTED'
                         error('repo_url not set or invalid')
@@ -34,6 +40,10 @@ pipeline {
                     if (env.CMD == '' || env.CMD == 'CMD_PLACE_HOLDER') {
                         currentBuild.result = 'ABORTED'
                         error('cmd not set or invalid')
+                    }
+                    if (env.JOB_NAME == '' || env.CMD == 'JOB_NAME_PLACE_HOLDER') {
+                        currentBuild.result = 'ABORTED'
+                        error('job name not set or invalid')
                     }
                 }
             }
@@ -55,33 +65,158 @@ pipeline {
                 }
             }
         }
+
         stage('build template string') {
             steps {
                 script {
-                    jobName = "${userName}-${repoNameLower}-job"
+                    jobName = env.JOB_NAME
                     def yamlStr = """
                     apiVersion: batch/v1
                     kind: Job
                     metadata:
                         name: ${jobName}
+                        labels:
+                            caller: ${env.CALLER_USERID}
                         namespace: algo
                     spec:
                         backoffLimit: 5
                         activeDeadlineSeconds: 600
                         ttlSecondsAfterFinished: 0
                         template:
+                            metadata:
+                               labels:
+                                    caller: ${env.CALLER_USERID}
                             spec:
-                                containers:
-                                    - name: ${repoNameLower}
+                                volumes:
+                                    - name: shared-volume
+                                      emptyDir: {}
+                                initContainers:
+                                    - name: pre
+                                      image: mintel/docker-alpine-bash-curl-jq
+                                      volumeMounts:
+                                        - name: shared-volume
+                                          mountPath: /shared
+                                      env:
+                                        - name: JWT_SECRET
+                                          valueFrom:
+                                            secretKeyRef:
+                                                name: algosecret
+                                                key: JWT_SECRET
+                                      command: ["sh"]
+                                      args:
+                                        - -c
+                                        - |
+                                          mkdir /shared/dataset
+                                          mkdir /shared/scripts
+                                          echo 'hello world' > /shared/dataset/hello.txt
+                                          echo 'hello' > /shared/dataset/hello2.txt
+
+                                          cat - <<REALEND > shared/scripts/genToken.sh
+                                          #!/bin/bash
+                                          apk add --update coreutils
+                                          secret_key=\\\$JWT_SECRET
+
+                                          echo secret = \\\$secret_key
+
+                                          base64url() {
+                                            base64 -w 0 | tr '+/' '-_' | tr -d '='
+                                          }
+
+                                          jwt_header=\\\$(echo -n '{"alg":"HS256","typ":"JWT"}' | base64url)
+                                          echo 'jwt header = '
+                                          echo \\\$jwt_header
+
+                                           time_str() {
+                                            date +"%s"
+                                          }
+
+                                          now=\\\$(time_str)
+                                          echo 'now and expire = '
+                                          echo \\\$now
+
+                                          expire=\\\$((\\\$now + 100))
+
+                                          echo \\\$expire
+
+                                          echo calleruserid = ${env.CALLER_USERID}
+                                           jwt_claims=\\\$(cat <<EOF |
+                                          {
+                                            "id": "${env.CALLER_USERID}",
+                                            "sub": "${env.CALLER_USERID}",
+                                            "iat": \\\$now,
+                                            "exp": \\\$expire
+                                          }
+                                          EOF
+                                          jq -Mcj '.' | base64url)
+                                          echo 'jwt_claims = '
+                                          echo \\\$jwt_claims
+
+                                          jwt_signature=\\\$(echo -n "\\\${jwt_header}.\\\${jwt_claims}" | \
+                                            openssl dgst -sha256 -hmac "\\\$secret_key" -binary | base64url)
+
+                                          echo 'jwt signature = '
+                                          echo \\\$jwt_signature
+
+                                          jwt="\\\${jwt_header}.\\\${jwt_claims}.\\\${jwt_signature}"
+
+                                          echo 'final jwt = '
+                                          echo \\\$jwt
+
+                                          export jwt
+
+                                          REALEND
+
+                                          echo gen script is
+                                          cat /shared/scripts/genToken.sh
+                                          echo now run
+                                          chmod 777 /shared/scripts/genToken.sh
+                                          source /shared/scripts/genToken.sh
+
+                                          echo 'check jwt retrieved from bash'
+                                          echo \$jwt
+
+                                          curl --location --request GET 'http://ingress-nginx-controller.kube-system.svc.cluster.local/api/postgresdataservices/getMock' \
+                                          --header 'header1: 111' \
+                                          --header 'Host: caps4.com' \
+                                          --header "Authorization: Bearer \${jwt}" >/shared/dataset/input.json
+
+                                          cat /shared/dataset/input.json
+
+
+
+                                          sleep 30
+
+                                    - name: core
                                       image: ${userName}/${repoNameLower}
                                       imagePullPolicy: Never
+                                      volumeMounts:
+                                        - name: shared-volume
+                                          mountPath: /shared
                                       command: ${env.CMD}
                                       env:
                                         - name: PYTHONUNBUFFERED
                                           value: "0"
+                                        - name: DATASET_INPUT
+                                          valueFrom:
+                                            configMapKeyRef:
+                                                name: provisioned-container-config
+                                                key: DATASET_INPUT
+                                containers:
+                                    - name: post
+                                      image: busybox
+                                      volumeMounts:
+                                        - name: shared-volume
+                                          mountPath: /shared
+                                      command: ["sh"]
+                                      args:
+                                        - -c
+                                        - |
+                                          sleep 60
+                                          echo finished
+
                                 restartPolicy: Never
                     """
-                    
+
                     writeFile file: "${jobName}.yaml", text: yamlStr
                 }
             }
@@ -98,6 +233,7 @@ pipeline {
                     }
                 }
                 echo 'check whether we have the yaml file'
+                // sh "cat ${jobName}.yaml"
                 sh "kubectl apply -f ${jobName}.yaml"
             }
         }

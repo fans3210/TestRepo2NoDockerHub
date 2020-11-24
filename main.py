@@ -25,10 +25,13 @@ if __name__ == "__main__":
     df['preditions'] = np.random.randint(1, 6, df.shape[0])
     df.to_csv(output_file)
 
-    print('check output file whether data write successfully')
+    print(f'check output file ${output_file} whether data write successfully')
 
     df_out = pd.read_csv(output_file)
     print('show part of ouptput file data')
     print(df_out.head())
+
+    print('try to list output folder: ', output_folder)
+    print(os.listdir(output_folder))
 
     time.sleep(5)

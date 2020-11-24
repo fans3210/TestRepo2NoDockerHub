@@ -17,4 +17,8 @@ if __name__ == "__main__":
     output folder = {output_folder}
     ''')
 
-    time.sleep(30)
+    df = pd.read_csv(input_file)
+    print('show part of  input file data')
+    print(df.head())
+
+    time.sleep(5)

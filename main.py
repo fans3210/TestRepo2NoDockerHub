@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import time
 import os
+import random
 
 if __name__ == "__main__":
     print('check env vars:')
@@ -18,7 +19,16 @@ if __name__ == "__main__":
     ''')
 
     df = pd.read_csv(input_file)
-    print('show part of  input file data')
+    print('show part of input file data')
     print(df.head())
+
+    df['preditions'] = np.random.randint(1, 6, df.shape[0])
+    df.to_csv(output_file)
+
+    print('check output file whether data write successfully')
+
+    df_out = pd.read_csv(output_file)
+    print('show part of ouptput file data')
+    print(df_out.head())
 
     time.sleep(5)
